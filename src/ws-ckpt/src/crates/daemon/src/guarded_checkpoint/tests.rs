@@ -452,8 +452,11 @@ async fn listener_binds_kernel_peer_uid_for_guarded_round_trip() {
     let cancel = CancellationToken::new();
     let listener_state = fixture.state.clone();
     let listener_cancel = cancel.clone();
+    let admission = crate::listener::Admission::new(Some(&nix::unistd::geteuid().to_string()))
+        .expect("test UID must be admitted");
     let listener = tokio::spawn(async move {
-        crate::listener::run_listener(listener_state, listener_cancel).await
+        crate::listener::run_listener_with_admission(listener_state, listener_cancel, admission)
+            .await
     });
 
     let mut client = tokio::time::timeout(std::time::Duration::from_secs(2), async {

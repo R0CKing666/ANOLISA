@@ -29,6 +29,9 @@ use tracing_subscriber::EnvFilter;
 use ws_ckpt_common::{DaemonConfig, DEFAULT_STATE_DIR, INDEXES_DIR, LOCKFILE_NAME};
 
 pub async fn run_daemon(config: DaemonConfig) -> anyhow::Result<()> {
+    // Validate before initialization or background tasks can outlive a failed listener.
+    let admission = listener::Admission::from_env()?;
+
     // 0. Require root privileges
     if !nix::unistd::geteuid().is_root() {
         anyhow::bail!(
@@ -111,8 +114,9 @@ pub async fn run_daemon(config: DaemonConfig) -> anyhow::Result<()> {
     // 12. Spawn listener
     let listener_cancel = cancel.clone();
     let listener_state = Arc::clone(&state);
-    let listener_handle =
-        tokio::spawn(async move { listener::run_listener(listener_state, listener_cancel).await });
+    let listener_handle = tokio::spawn(async move {
+        listener::run_listener_with_admission(listener_state, listener_cancel, admission).await
+    });
 
     // 13. Wait for shutdown signal
     tokio::select! {
@@ -157,4 +161,37 @@ pub async fn run_daemon(config: DaemonConfig) -> anyhow::Result<()> {
 
     info!("daemon shutdown complete");
     Ok(())
+}
+
+#[cfg(test)]
+mod startup_tests {
+    #[test]
+    fn invalid_policy_fails_daemon_before_initialization() {
+        const CHILD: &str = "WS_CKPT_POLICY_TEST_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+            let error = runtime
+                .block_on(super::run_daemon(Default::default()))
+                .unwrap_err();
+            assert!(format!("{error:#}").contains("WS_CKPT_ALLOWED_UIDS"));
+            return;
+        }
+        // A child process isolates environment changes from parallel listener tests.
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "startup_tests::invalid_policy_fails_daemon_before_initialization",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env("WS_CKPT_ALLOWED_UIDS", "1000,")
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
 }
