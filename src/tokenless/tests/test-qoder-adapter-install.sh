@@ -140,6 +140,17 @@ else
     fail "detect rejected a compatible qodercli"
 fi
 
+# A versioned CLI under a HOME containing spaces must not be word-split.
+SPACED_HOME="$SANDBOX/home with space"
+mkdir -p "$SPACED_HOME/.qoder/bin/qodercli"
+cp "$QODERCLI" "$SPACED_HOME/.qoder/bin/qodercli/qodercli-1.2.3"
+chmod +x "$SPACED_HOME/.qoder/bin/qodercli/qodercli-1.2.3"
+if HOME="$SPACED_HOME" ANOLISA_ADAPTER_DIR="$ADAPTER_DIR" bash "$DETECT_SH" >/dev/null; then
+    pass "detect accepts a versioned CLI under a HOME containing spaces"
+else
+    fail "detect misses a versioned CLI under a HOME containing spaces"
+fi
+
 if HOME="$FAKE_HOME" ANOLISA_ADAPTER_DIR="$ADAPTER_DIR" bash "$INSTALL_SH" >/dev/null; then
     pass "native plugin installation succeeds"
 else

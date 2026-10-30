@@ -6,8 +6,9 @@ AGENT="${ANOLISA_TARGET:-qoder}"
 COMPONENT="${ANOLISA_COMPONENT:-tokenless}"
 
 versioned_glob="$HOME/.qoder/bin/qodercli/qodercli-${ANOLISA_QODER_VERSION:-*}"
-# shellcheck disable=SC2086 # Intentional version glob expansion.
-latest_versioned="$(ls -d $versioned_glob 2>/dev/null | sort -V | tail -1 || true)"
+# compgen expands the glob without word-splitting the surrounding path, so a
+# HOME or version containing spaces keeps the candidate intact.
+latest_versioned="$(compgen -G "$versioned_glob" 2>/dev/null | sort -V | tail -1 || true)"
 
 QODERCLI=""
 for candidate in "$latest_versioned" \
