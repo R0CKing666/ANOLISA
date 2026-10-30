@@ -96,9 +96,9 @@ get_latest_kernel() {
     
     if [ -z "$version" ]; then
         version="6.12.9"  # Fallback version
-        warn "Could not fetch latest version, using fallback: $version"
+        warn "Could not fetch latest version, using fallback: $version" >&2
     else
-        success "Latest stable kernel: $version"
+        success "Latest stable kernel: $version" >&2
     fi
     
     echo "$version"
@@ -134,27 +134,29 @@ build_srpm() {
     # Prepare build
     info "Preparing build environment..."
     cd "$OUTPUT_DIR/SPECS"
-    rpmbuild -bp kernel.spec --define "_topdir $OUTPUT_DIR" 2>&1 | tee -a "$LOG_FILE"
+    ( set -o pipefail
+      rpmbuild -bp kernel.spec --define "_topdir $OUTPUT_DIR" 2>&1 | tee -a "$LOG_FILE" )
     
     # Build kernel
     info "Starting kernel compilation (this may take 1-3 hours)..."
     info "Build log: $LOG_FILE"
     
-    rpmbuild -bc kernel.spec \
+    ( set -o pipefail
+      rpmbuild -bc kernel.spec \
         --define "_topdir $OUTPUT_DIR" \
         --define "with_debug 0" \
         --define "with_doc 0" \
         --define "with_headers 1" \
         --define "with_perf 1" \
-        2>&1 | tee -a "$LOG_FILE" &
-    
+        2>&1 | tee -a "$LOG_FILE" ) &
+
     local build_pid=$!
     info "Build started in background (PID: $build_pid)"
     info "Monitor progress: tail -f $LOG_FILE"
-    
+
     # Wait for completion
     wait $build_pid
-    
+
     success "SRPM build completed"
     info "RPMs location: $OUTPUT_DIR/RPMS/x86_64/"
 }
@@ -244,18 +246,25 @@ build_upstream() {
     info "Starting kernel compilation (estimated: 30-60 minutes)..."
     info "Build log: $LOG_FILE"
     
-    make -j"$PARALLEL_JOBS" "$IMAGE_TARGET" 2>&1 | tee -a "$LOG_FILE" &
+    ( set -o pipefail
+      make -j"$PARALLEL_JOBS" "$IMAGE_TARGET" 2>&1 | tee -a "$LOG_FILE" ) &
     local build_pid=$!
     info "Build started in background (PID: $build_pid)"
     info "Monitor progress: tail -f $LOG_FILE"
-    
+
     # Wait for completion
     wait $build_pid
-    
+
     # Build modules
     info "Building kernel modules..."
-    make -j"$PARALLEL_JOBS" modules 2>&1 | tee -a "$LOG_FILE"
-    
+    ( set -o pipefail
+      make -j"$PARALLEL_JOBS" modules 2>&1 | tee -a "$LOG_FILE" )
+
+    if [ ! -f "$src_dir/$IMAGE_PATH" ]; then
+        error "Kernel image was not produced: $src_dir/$IMAGE_PATH"
+        exit 1
+    fi
+
     success "Upstream build completed"
     info "Kernel image: $src_dir/$IMAGE_PATH"
     info "Modules: $src_dir/drivers/**/*.ko"
