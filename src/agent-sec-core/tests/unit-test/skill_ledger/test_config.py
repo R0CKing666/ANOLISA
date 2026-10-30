@@ -145,6 +145,33 @@ class TestConfigMerge(unittest.TestCase):
         merged = _deep_merge_config(defaults, user)
         self.assertEqual(merged["managedSkillDirs"], [])
 
+    def test_non_list_managed_dirs_are_rejected(self):
+        for value in ("/srv/skills", {"path": "/srv/skills"}, 7):
+            with self.subTest(value=value):
+                with self.assertRaises(ConfigError):
+                    _deep_merge_config(
+                        {"managedSkillDirs": []},
+                        {"managedSkillDirs": value},
+                    )
+
+    def test_non_list_scanners_are_rejected(self):
+        for value in ("code-scanner", {"name": "code-scanner"}, 7):
+            with self.subTest(value=value):
+                with self.assertRaises(ConfigError):
+                    _deep_merge_config(
+                        {"scanners": []},
+                        {"scanners": value},
+                    )
+
+    def test_non_mapping_parsers_are_rejected(self):
+        for value in ("findings-array", [], 7):
+            with self.subTest(value=value):
+                with self.assertRaises(ConfigError):
+                    _deep_merge_config(
+                        {"parsers": {}},
+                        {"parsers": value},
+                    )
+
     def test_effective_entries_include_defaults_by_default(self):
         config = {"enableDefaultSkillDirs": True, "managedSkillDirs": ["/opt/custom/*"]}
         entries = effective_skill_dir_entries(config)

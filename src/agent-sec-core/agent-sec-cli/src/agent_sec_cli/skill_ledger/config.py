@@ -111,11 +111,21 @@ def _deep_merge_config(
     """
     merged = dict(defaults)
     for key, user_val in user.items():
-        if key == "managedSkillDirs" and isinstance(user_val, list):
+        if key == "managedSkillDirs":
+            if not isinstance(user_val, list):
+                raise ConfigError(
+                    "managedSkillDirs must be a list of strings, got "
+                    f"{type(user_val).__name__}"
+                )
             entries = [str(v) for v in user_val]
             _validate_managed_skill_dir_entries(entries)
             merged["managedSkillDirs"] = _compact_skill_dirs(entries)
-        elif key == "scanners" and isinstance(user_val, list):
+        elif key == "scanners":
+            if not isinstance(user_val, list):
+                raise ConfigError(
+                    "scanners must be a list of objects, got "
+                    f"{type(user_val).__name__}"
+                )
             # Index defaults by name for O(1) lookup
             by_name: dict[str, dict[str, Any]] = {}
             for s in defaults.get("scanners", []):
@@ -128,7 +138,12 @@ def _deep_merge_config(
                     canonical = validate_scanner_name(str(s["name"]))
                     by_name[canonical] = {**s, "name": canonical}
             merged["scanners"] = list(by_name.values())
-        elif key == "parsers" and isinstance(user_val, dict):
+        elif key == "parsers":
+            if not isinstance(user_val, dict):
+                raise ConfigError(
+                    "parsers must be an object keyed by parser name, got "
+                    f"{type(user_val).__name__}"
+                )
             merged_parsers = dict(defaults.get("parsers", {}))
             merged_parsers.update(user_val)
             merged["parsers"] = merged_parsers
@@ -450,7 +465,13 @@ def remember_skill_dir(
     else:
         entry = str(skill_dir)
 
-    existing = list(config.get("managedSkillDirs", []))
+    existing_value = config.get("managedSkillDirs", [])
+    if not isinstance(existing_value, list):
+        raise ConfigError(
+            "managedSkillDirs must be a list of strings, got "
+            f"{type(existing_value).__name__}"
+        )
+    existing = list(existing_value)
     if entry not in existing:
         existing.append(entry)
     config["managedSkillDirs"] = _compact_skill_dirs(existing)
