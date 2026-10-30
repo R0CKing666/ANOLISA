@@ -93,17 +93,24 @@ echo "  目录创建完成"
 # ── 步骤 4: 写入配置文件 ──────────────────────────────────
 echo "[4/6] 写入配置文件..."
 
-# 3a: config.json — 从模板替换占位符
+# 3a: config.json — seed only when absent so a re-run keeps user settings
 CONFIG_TEMPLATE="$SKILL_DIR/reference/config.json.example"
-if [ ! -f "$CONFIG_TEMPLATE" ]; then
-  echo "  错误: 找不到模板文件 $CONFIG_TEMPLATE"
-  exit 1
+if [ -f "$QWENPAW_DIR/config.json" ]; then
+  echo "  config.json 已存在，保留现有配置（如需按模板重建，请先备份并删除）"
+else
+  if [ ! -f "$CONFIG_TEMPLATE" ]; then
+    echo "  错误: 找不到模板文件 $CONFIG_TEMPLATE"
+    exit 1
+  fi
+  temp_config="$(mktemp "$QWENPAW_DIR/.config.json.XXXXXX")"
+  sed \
+    -e "s|{DINGTALK_CLIENT_ID}|${DINGTALK_CLIENT_ID}|g" \
+    -e "s|{DINGTALK_CLIENT_SECRET}|${DINGTALK_CLIENT_SECRET}|g" \
+    "$CONFIG_TEMPLATE" > "$temp_config"
+  chmod 600 "$temp_config"
+  mv "$temp_config" "$QWENPAW_DIR/config.json"
+  echo "  config.json 已写入"
 fi
-sed \
-  -e "s|{DINGTALK_CLIENT_ID}|${DINGTALK_CLIENT_ID}|g" \
-  -e "s|{DINGTALK_CLIENT_SECRET}|${DINGTALK_CLIENT_SECRET}|g" \
-  "$CONFIG_TEMPLATE" > "$QWENPAW_DIR/config.json"
-echo "  config.json 已写入"
 
 # 3b: dashscope.json — 百炼提供商
 DASHSCOPE_TEMPLATE="$SKILL_DIR/reference/dashscope.json"
