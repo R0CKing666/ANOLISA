@@ -370,7 +370,7 @@ check_git() {
                 ubuntu|debian)
                     log_info "  sudo apt update && sudo apt install git"
                     ;;
-                fedora)
+                fedora|rhel|centos|rocky|alma|alinux|anolis)
                     log_info "  sudo dnf install git"
                     ;;
                 arch)
@@ -615,7 +615,8 @@ install_system_packages() {
     local pkg_install=""
     case "$DISTRO" in
         ubuntu|debian) pkg_install="apt install -y"   ;;
-        fedora)        pkg_install="dnf install -y"   ;;
+        fedora|rhel|centos|rocky|alma|alinux|anolis)
+                       pkg_install="dnf install -y"   ;;
         arch)          pkg_install="pacman -S --noconfirm" ;;
     esac
 
@@ -705,7 +706,7 @@ show_manual_install_hint() {
         linux)
             case "$DISTRO" in
                 ubuntu|debian) log_info "  sudo apt install $pkg" ;;
-                fedora)        log_info "  sudo dnf install $pkg" ;;
+                fedora|rhel|centos|rocky|alma|alinux|anolis)        log_info "  sudo dnf install $pkg" ;;
                 arch)          log_info "  sudo pacman -S $pkg"   ;;
                 *)             log_info "  Use your package manager or visit the project homepage" ;;
             esac
