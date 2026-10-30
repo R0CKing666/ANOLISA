@@ -106,4 +106,19 @@ if python3 "$VERIFIER" "$DRIFT_ROOT" --os linux --arch x86_64 \
     exit 1
 fi
 
+# A platform package must describe its own os/cpu even when a different
+# target is being verified.
+PLATFORM_ROOT="$TEMPORARY/platform-drift"
+install -d -m 0755 "$PLATFORM_ROOT/npm/platforms"
+install -p -m 0644 "$ROOT/Cargo.toml" "$PLATFORM_ROOT/Cargo.toml"
+cp -a "$ROOT/npm/package.json" "$PLATFORM_ROOT/npm/package.json"
+cp -a "$ROOT/npm/platforms/." "$PLATFORM_ROOT/npm/platforms/"
+sed -i 's/"cpu": \["arm64"\]/"cpu": ["x64"]/' \
+    "$PLATFORM_ROOT/npm/platforms/darwin-arm64/package.json"
+if python3 "$VERIFIER" "$PLATFORM_ROOT" --os linux --arch x86_64 \
+    >/dev/null 2>&1; then
+    printf 'ERROR: sibling platform os/cpu drift was accepted\n' >&2
+    exit 1
+fi
+
 printf 'ANOLISA CLI prebuilt package tests passed\n'

@@ -70,6 +70,10 @@ def verify_release(root: Path, os_name: str, arch: str) -> str:
             f"ERROR: {npm_root / 'package.json'} version does not match {version}"
         )
 
+    suffix_targets = {
+        suffix: (npm_os, npm_cpu)
+        for suffix, npm_os, npm_cpu in TARGET_PACKAGES.values()
+    }
     platform_packages: dict[str, str] = {}
     platforms = npm_root / "platforms"
     try:
@@ -82,10 +86,18 @@ def verify_release(root: Path, os_name: str, arch: str) -> str:
         package = read_json(package_file)
         name = package.get("name")
         package_version = package.get("version")
-        if not isinstance(name, str) or not name.startswith("@anolisa/cli-"):
+        dir_suffix = package_file.parent.name
+        expected = suffix_targets.get(dir_suffix)
+        if expected is None:
+            raise SystemExit(
+                f"ERROR: {package_file} is not under a known platform directory"
+            )
+        if name != f"@anolisa/cli-{dir_suffix}":
             raise SystemExit(f"ERROR: {package_file} has the wrong package name")
         if package_version != version:
             raise SystemExit(f"ERROR: {package_file} version does not match {version}")
+        if package.get("os") != [expected[0]] or package.get("cpu") != [expected[1]]:
+            raise SystemExit(f"ERROR: {package_file} does not describe {dir_suffix}")
         platform_packages[name] = version
 
     optional = root_package.get("optionalDependencies")
