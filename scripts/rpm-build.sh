@@ -1370,6 +1370,13 @@ fi
 
 TARGET="$1"
 
+case "$TARGET" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+esac
+
 # Pre-flight: check rpmbuild is available
 if ! command -v "$RPMBUILD" &>/dev/null; then
     err "rpmbuild not found. Install with: yum install rpm-build (or brew install rpm on macOS)"
