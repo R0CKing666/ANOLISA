@@ -111,7 +111,12 @@ def _deep_merge_config(
     """
     merged = dict(defaults)
     for key, user_val in user.items():
-        if key == "managedSkillDirs" and isinstance(user_val, list):
+        if key == "managedSkillDirs":
+            if not isinstance(user_val, list):
+                raise ConfigError(
+                    "managedSkillDirs must be a list of strings, got "
+                    f"{type(user_val).__name__}"
+                )
             entries = [str(v) for v in user_val]
             _validate_managed_skill_dir_entries(entries)
             merged["managedSkillDirs"] = _compact_skill_dirs(entries)
@@ -450,7 +455,13 @@ def remember_skill_dir(
     else:
         entry = str(skill_dir)
 
-    existing = list(config.get("managedSkillDirs", []))
+    existing_value = config.get("managedSkillDirs", [])
+    if not isinstance(existing_value, list):
+        raise ConfigError(
+            "managedSkillDirs must be a list of strings, got "
+            f"{type(existing_value).__name__}"
+        )
+    existing = list(existing_value)
     if entry not in existing:
         existing.append(entry)
     config["managedSkillDirs"] = _compact_skill_dirs(existing)
