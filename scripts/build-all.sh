@@ -1579,7 +1579,11 @@ check_ebpf_deps() {
         local kver
         kver=$(uname -r 2>/dev/null || echo "")
         if [[ -n "$kver" ]]; then
-            pkgs+=("linux-headers-${kver}")
+            if apt-cache show "linux-headers-${kver}" &>/dev/null; then
+                pkgs+=("linux-headers-${kver}")
+            else
+                warn "No linux-headers package for running kernel ${kver}; sight may need headers built separately"
+            fi
         fi
         local pkg
         for pkg in "${pkgs[@]}"; do
