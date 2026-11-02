@@ -89,10 +89,12 @@ def load_config(config_path: Path) -> VerificationConfig:
                 continue
 
             if in_list:
-                if line == "]":
+                # Accept a trailing comma on the list terminator: "],".
+                closing = line.rstrip(",").strip()
+                if closing == "]":
                     in_list = False
                 else:
-                    value = line.rstrip(",").strip()
+                    value = closing
                     if not value:
                         raise ErrConfigInvalid(
                             str(config_path), "empty skills_dir entry"
