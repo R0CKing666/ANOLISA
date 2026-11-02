@@ -30,3 +30,19 @@ print(checker["read_version"]("src/os-skills/component.toml"))
 PY
 )
 EXPECTED_VERSION="$component_version" RPMBUILD="$tmp/rpmbuild" bash "$tmp/scripts/rpm-build.sh" os-skills
+
+# --help must print usage and exit 0 without requiring or invoking rpmbuild.
+cat > "$tmp/rpmbuild-should-not-run" <<'MOCK'
+#!/bin/bash
+touch "${RPMBUILD_MARKER:?}"
+exit 99
+MOCK
+chmod +x "$tmp/rpmbuild-should-not-run"
+RPMBUILD_MARKER="$tmp/rpmbuild-invoked" RPMBUILD="$tmp/rpmbuild-should-not-run" \
+    bash "$tmp/scripts/rpm-build.sh" --help > "$tmp/help.out" 2>&1
+grep -q '^Usage: .*rpm-build\.sh <package|all>$' "$tmp/help.out"
+grep -q 'os-skills' "$tmp/help.out"
+if [ -e "$tmp/rpmbuild-invoked" ]; then
+    echo "rpmbuild was invoked for --help" >&2
+    exit 1
+fi
