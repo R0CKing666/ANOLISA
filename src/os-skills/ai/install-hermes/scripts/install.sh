@@ -208,8 +208,11 @@ detect_os() {
                 DISTRO="termux"
             else
                 OS="linux"
-                if [ -f /etc/os-release ]; then
-                    . /etc/os-release
+                # HERMES_OS_RELEASE_FILE keeps the distro mapping testable without
+                # a container that boots a specific distribution.
+                local os_release_file="${HERMES_OS_RELEASE_FILE:-/etc/os-release}"
+                if [ -f "$os_release_file" ]; then
+                    . "$os_release_file"
                     DISTRO="$ID"
                 else
                     DISTRO="unknown"
