@@ -11,6 +11,7 @@ the Rust ``model-service`` crate.
 
 import ipaddress
 import os
+import socket
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -32,15 +33,29 @@ _DEFAULT_TIMEOUT = 30
 
 
 def _is_loopback_url(base_url: str) -> bool:
-    """Whether the URL's host is ``localhost`` or a loopback IP (``127.x.x.x``, ``::1``)."""
-    host = urlsplit(base_url).hostname
+    """Whether the URL's host is ``localhost`` or a loopback IP.
+
+    Matches the Rust mirror's acceptance of equivalent spellings: a trailing
+    dot, legacy short/hex IPv4 forms (``127.1``, ``2130706433``,
+    ``0x7f.0.0.1``), and IPv6 loopback.
+    """
+    try:
+        host = urlsplit(base_url).hostname
+    except ValueError:
+        # A malformed authority (e.g. an unclosed IPv6 literal).
+        return False
     if not host:
         return False
+    host = host.rstrip(".").lower()
     if host == "localhost":
         return True
     try:
         return ipaddress.ip_address(host).is_loopback
     except ValueError:
+        pass
+    try:
+        return ipaddress.ip_address(socket.inet_aton(host)).is_loopback
+    except OSError:
         # A non-literal hostname; treated as remote.
         return False
 
@@ -52,7 +67,11 @@ def _validate_base_url(base_url: str) -> None:
         ValueError: the scheme is neither ``http://`` nor ``https://``, or the
             host is not loopback.
     """
-    if not base_url.startswith(("http://", "https://")):
+    try:
+        scheme = urlsplit(base_url).scheme
+    except ValueError:
+        scheme = ""
+    if scheme.lower() not in ("http", "https"):
         raise ValueError(f"base_url must use http:// or https:// scheme: {base_url!r}")
     if not _is_loopback_url(base_url):
         raise ValueError(

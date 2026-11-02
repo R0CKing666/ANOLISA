@@ -177,6 +177,43 @@ class TestCreateClient(unittest.TestCase):
         self.assertIsInstance(client, OllamaClient)
         self.assertEqual(client._base_url, "http://my-host:1234")
 
+    def test_env_loopback_spellings_are_accepted(self) -> None:
+        for url in (
+            "http://localhost:11434",
+            "http://127.0.0.1:11434",
+            "http://127.1.2.3:11434",
+            "http://127.1:11434",
+            "http://2130706433:11434",
+            "http://0x7f.0.0.1:11434",
+            "http://localhost.:11434",
+            "http://127.0.0.1.:11434",
+            "HTTP://localhost:11434",
+            "http://[::1]:11434",
+        ):
+            with self.subTest(url=url):
+                with patch.dict(
+                    os.environ, {"AGENT_SEC_MODEL_SERVICE_BASE_URL": url}
+                ):
+                    client = create_client()
+                    self.assertIsInstance(client, OllamaClient)
+
+    def test_env_non_loopback_base_url_is_rejected(self) -> None:
+        for url in (
+            "http://example.com:11434",
+            "http://10.0.0.1:11434",
+            "ftp://localhost:11434",
+            # A loopback label in userinfo is a red herring: the real host is
+            # the post-@ authority, which is where the request would go.
+            "http://localhost:8080@attacker.example:11434",
+            "http://127.0.0.1:8080@attacker.example",
+        ):
+            with self.subTest(url=url):
+                with patch.dict(
+                    os.environ, {"AGENT_SEC_MODEL_SERVICE_BASE_URL": url}
+                ):
+                    with self.assertRaises(ValueError):
+                        create_client()
+
     def test_custom_timeout(self) -> None:
         client = create_client(timeout=60)
         self.assertEqual(client._timeout, 60)
