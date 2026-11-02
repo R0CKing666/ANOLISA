@@ -228,6 +228,21 @@ class TestVerifySkillsDir(unittest.TestCase):
             with self.assertRaisesRegex(OSError, "Input/output error"):
                 verify_skills_dir(str(root), [])
 
+    def test_dangling_symlink_is_skipped(self):
+        root = Path(self.tmpdir) / "skills"
+        (root / "good-skill").mkdir(parents=True)
+        (root / "broken-link").symlink_to("/nonexistent/target")
+
+        with patch(
+            "agent_sec_cli.asset_verify.verifier.verify_skill",
+            return_value=(True, "good-skill"),
+        ):
+            results = verify_skills_dir(str(root), [])
+
+        self.assertEqual(results["checked"], 1)
+        self.assertEqual(results["passed"], ["good-skill"])
+        self.assertEqual(results["failed"], [])
+
     @patch(
         "agent_sec_cli.asset_verify.verifier.verify_skill",
         side_effect=ErrManifestMissing("bad-skill"),

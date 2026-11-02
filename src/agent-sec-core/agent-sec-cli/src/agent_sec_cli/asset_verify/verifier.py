@@ -359,7 +359,13 @@ def verify_skills_dir(skills_dir: str, trusted_keys: list) -> SkillsDirectoryRes
     for entry in entries:
         if entry.name.startswith("."):
             continue
-        if not stat.S_ISDIR(entry.stat().st_mode):
+        try:
+            is_dir = stat.S_ISDIR(entry.stat().st_mode)
+        except FileNotFoundError:
+            # A dangling symlink is not a candidate; other stat errors still
+            # propagate so an unreadable entry is not silently ignored.
+            continue
+        if not is_dir:
             continue
 
         checked += 1
