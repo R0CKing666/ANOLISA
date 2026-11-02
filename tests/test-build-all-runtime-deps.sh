@@ -1194,6 +1194,49 @@ test_product_install_uses_explicit_legacy_profiles() {
     done
 }
 
+test_ebpf_hint_skips_unavailable_kernel_headers() {
+    reset_preflight_stubs
+    PKG_BASE="deb"
+    INSTALL_DEPS=false
+    cmd_exists() { return 0; }
+    uname() {
+        if [[ "${1:-}" == "-r" ]]; then
+            echo "6.8.0-test"
+        else
+            command uname "$@"
+        fi
+    }
+    dpkg() { return 1; }
+    apt-cache() { return 1; }
+
+    check_ebpf_deps > "$TEST_OUTPUT" 2>&1
+
+    assert_contains "$TEST_OUTPUT" \
+        'No linux-headers package for running kernel 6.8.0-test'
+    assert_not_contains "$TEST_OUTPUT" 'linux-headers-6.8.0-test'
+}
+
+test_ebpf_hint_keeps_kernel_headers_when_package_exists() {
+    reset_preflight_stubs
+    PKG_BASE="deb"
+    INSTALL_DEPS=false
+    cmd_exists() { return 0; }
+    uname() {
+        if [[ "${1:-}" == "-r" ]]; then
+            echo "6.8.0-test"
+        else
+            command uname "$@"
+        fi
+    }
+    dpkg() { return 1; }
+    apt-cache() { return 0; }
+
+    check_ebpf_deps > "$TEST_OUTPUT" 2>&1
+
+    assert_contains "$TEST_OUTPUT" 'linux-headers-6.8.0-test'
+    assert_not_contains "$TEST_OUTPUT" 'No linux-headers package'
+}
+
 run_test() {
     local name="$1" status
     set +e
@@ -1255,3 +1298,5 @@ run_test test_rustup_explicit_servers_are_preserved
 run_test test_rustup_automatic_mirrors_still_select_by_channel
 
 run_test test_product_install_uses_explicit_legacy_profiles
+run_test test_ebpf_hint_skips_unavailable_kernel_headers
+run_test test_ebpf_hint_keeps_kernel_headers_when_package_exists
